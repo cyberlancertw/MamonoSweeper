@@ -1,0 +1,279 @@
+﻿@model MamonoSweeper.Models.GameSetting
+
+<script>
+//var token = '@Model.Token';
+var onField;
+var strNumber = '123456789';
+var countRow = @Model.CountRow, countCol = @Model.CountCol;
+var fieldAround = [], expToNext = [];
+var hp = @Model.HP, lv = @Model.LV, exp = 0, expNext;
+var gameover = false;
+
+@foreach(int expTo in Model.ExpArray)
+{
+@:expToNext.push(@(expTo));
+}
+expNext = expToNext.shift();
+
+document.querySelectorAll('#mineField div.field').forEach(function(dom) {
+    dom.addEventListener('mouseover', function() {
+        onField = dom;
+        dom.classList.remove('notSelected');
+        dom.classList.add('selected');
+    });
+    dom.addEventListener('mouseleave', function() {
+        onField = null;
+        dom.classList.remove('selected');
+        dom.classList.add('notSelected');
+    });
+    dom.addEventListener('click', function() {
+        if (gameover) {
+            location.reload();
+            return;
+        }
+        let ds = dom.dataset;
+        if (ds.status > 1 && ds.monster > 0) {
+            HandleQuery(dom);
+            return;
+        }
+        if (ds.status > 1) {
+            return;
+        }
+        let r = parseInt(ds.row), c = parseInt(ds.col);
+        console.log(`(${r},${c})`);
+        Fight(r, c);
+    });
+})
+
+document.body.addEventListener('keyup', Flag);
+document.body.style.width = 46 * (countCol + 1) + 'px';
+
+function Flag(event) {
+    if (onField && strNumber.includes(event.key) && onField.dataset.status < 2) {
+        let spn = onField.children[0];
+        if (spn.textContent == event.key) {
+            spn.textContent = '';
+        }
+        else {
+            spn.textContent = event.key;
+        }
+    }
+}
+function Fight(row, col) {
+    $.ajax({
+        url: '@Url.Action("Fight")',
+        type: 'POST',
+        data: {
+            row: row,
+            col: col
+        },
+        cache: false,
+        success: function(response) {
+            if (response.success) {
+                HandleFight(row, col, response.result, response.reinforce);
+            }
+            else {
+                alert(response.errorMessage);
+            }
+            console.log(response);
+        },
+        error: function(xhr) {
+            alert('發生異常：' + xhr.responseText);
+        }
+    });
+}
+
+function HandleFight(row, col, monster, reinforce) {
+    let field = GetField(row, col);
+    if (field.dataset.status > 1) {
+        return;
+    }
+    let spn = field.children[0];
+    let img = field.children[1];
+    field.classList.remove('field-unknown');
+    field.classList.add('field-blank');
+    field.dataset.status = 2;
+    spn.textContent = '';
+    if (monster == 0) {
+        if (reinforce == 0) {
+            GoAround(parseInt(row), parseInt(col));
+            return;
+        }
+        else {
+            field.dataset.reinforce = reinforce;
+            spn.textContent = reinforce;
+            spn.classList.remove('word-mine')
+            spn.classList.add('word-reinforce');
+            return;
+        }
+    }
+    else {
+        field.dataset.monster = monster;
+        field.dataset.reinforce = reinforce;
+        img.setAttribute('src', `@Url.Content("~/images/")monsterLv${monster}.png`);
+        HandleLevelUP(monster);
+        HandleMonsterCount(monster);
+    }
+}
+
+function HandleLevelUP(monster){
+    if (monster > lv) {
+        document.body.classList.add('damage');
+        setTimeout(function() {
+            document.body.classList.remove('damage');
+        }, 600);
+
+        let damage = (monster - lv) * (monster - lv + 1);
+        hp -= damage;
+        if (hp <= 0) {
+            hp = 0;
+        }
+        document.getElementById('spnHP').textContent = hp;
+        if (hp == 0) {
+            GameOver();
+        }
+    }
+
+    let expGain = Math.pow(2, monster - 1);
+    exp += expGain;
+    document.getElementById('spnEXP').textContent = exp;
+    if (exp >= expNext && hp != 0) {
+        document.body.classList.add('level-up');
+        setTimeout(function() {
+            document.body.classList.remove('level-up');
+        }, 1100);
+        lv += 1;
+        document.getElementById('spnLV').textContent = lv;
+        expNext = expToNext.shift();
+        if (!expNext) {
+            expNext = '-';
+        }
+        document.getElementById('spnNEXT').textContent = expNext;
+    }
+}
+
+function HandleMonsterCount(monster){
+    let countSpn = document.getElementById(`count${monster}`);
+    countSpn.textContent = parseInt(countSpn.textContent) - 1;
+}
+function HandleQuery(field) {
+    let spn = field.children[0];
+    let img = field.children[1];
+    if (field.dataset.status == 2) {
+        spn.textContent = field.dataset.reinforce;
+        spn.classList.add('word-query');
+        img.setAttribute('src', '');
+        field.dataset.status = 3;
+        return;
+    }
+    if (field.dataset.status == 3) {
+        let monster = field.dataset.monster;
+        spn.textContent = '';
+        spn.classList.remove('word-query');
+        img.setAttribute('src', `@Url.Content("~/images/")monsterLv${monster}.png`);
+        field.dataset.status = 2;
+    }
+}
+
+function GoAround(row, col) {
+
+    if (row > 0) {
+        if (IsUnknown(row - 1, col)) fieldAround.push(new Pair(row - 1, col));
+
+        if (col > 0) {
+            if (IsUnknown(row - 1, col - 1)) fieldAround.push(new Pair(row - 1, col - 1));
+        }
+        if (col < countCol - 1) {
+            if (IsUnknown(row - 1, col + 1)) fieldAround.push(new Pair(row - 1, col + 1));
+        }
+    }
+    if (row < countRow - 1) {
+        if (IsUnknown(row + 1, col)) fieldAround.push(new Pair(row + 1, col));
+
+        if (col > 0) {
+            if (IsUnknown(row + 1, col - 1)) fieldAround.push(new Pair(row + 1, col - 1));
+        }
+        if (col < countCol - 1) {
+            if (IsUnknown(row + 1, col + 1)) fieldAround.push(new Pair(row + 1, col + 1));
+        }
+    }
+    if (col > 0) {
+        if (IsUnknown(row, col - 1)) fieldAround.push(new Pair(row, col - 1));
+    }
+    if (col < countCol - 1) {
+        if (IsUnknown(row, col + 1)) fieldAround.push(new Pair(row, col + 1));
+    }
+    console.log(fieldAround);
+    GoAroundStepByStep();
+}
+function Pair(row, col) {
+    return {
+        Row: parseInt(row),
+        Col: parseInt(col)
+    }
+}
+
+function GoAroundStepByStep() {
+    if (fieldAround.length == 0) {
+        return;
+    }
+    let pair = fieldAround.shift();
+    let dom = GetField(pair.Row, pair.Col);
+    dom.click();
+    GoAroundStepByStep();
+}
+function IsUnknown(row, col) {
+    let dom = GetField(row, col);
+    if (dom.dataset.status > 1) {
+        return false;
+    }
+    fieldAround.forEach(pair => {
+        if (pair.Row == row && pair.Col == col) {
+            return false;
+        }
+    });
+    return true;
+}
+
+function GetField(row, col) {
+    return document.getElementById(`(${row},${col})`);
+}
+
+function GameOver() {
+    gameover = true;
+    $.ajax({
+        url: '@Url.Action("GameOver")',
+        type: 'POST',
+        cache: false,
+        success: function(response) {
+            if (response.success) {
+                ShowAllMonster(JSON.parse(response.mineField));
+            }
+            else {
+                console.log(response.errorMessage);
+            }
+            console.log(response);
+        },
+        error: function(response) {
+            alert(response);
+        }
+    });
+}
+
+function ShowAllMonster(datas){
+    for (let r = 0; r < countRow; r++) {
+        for (let c = 0; c < countCol; c++) {
+            let monster = parseInt(datas[r][c]);
+            if (monster > 0) {
+                let dom = GetField(r, c);
+                dom.dataset.status = 2;
+                dom.dataset.monster = monster;
+                dom.classList.remove('field-unknown');
+                dom.classList.remove('field-blank');
+                dom.children[0].textContent = '';
+                dom.children[1].setAttribute('src', `@Url.Content("~/images/")monsterLv${monster}.png`);
+            }
+        }
+    }
+}
+</script>

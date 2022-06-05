@@ -1,0 +1,157 @@
+﻿@model MamonoSweeper.Models.GameSetting
+@{
+    Layout = null;
+    int[] aryCount = new int[] { };
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script  src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <style>
+        body{
+            background-color: #101010;
+        }
+        .field{
+            width: 46px;
+            height: 46px;
+            text-align: center;
+        }
+        .field-unknown{
+            background-color: @Model.Color;
+        }
+        .field-blank{
+            background-color: #101010;
+        }
+        .count{
+            height: 66px;
+            background-color: #101010;
+        }
+        .count-monster{
+            height: 46px;
+        }
+        .notSelected{
+            border: 1px solid #404040;
+        }
+        .selected{
+            border: 1px solid #e0e000;
+        }
+        .aRow{
+            display: flex;
+            align-items: center;
+        }
+        .fieldMonster{
+            width: 100%;
+        }
+        #divStatus{
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .word{
+            font-size: 26px;
+        }
+        .word-count{
+            text-align: center;
+            color: #aaaaaa;
+        }
+        .word-mine{
+            color: #eeee22;
+        }
+        .word-reinforce{
+            color: #cccccc;
+        }
+        .word-query{
+            color: #ee2222;
+        }
+        .status{
+            width: auto;
+        }
+        .status-title{
+            font-size: 22px;
+            color: #e0e0e0;
+            width: 120px;
+            margin-right: 5px;
+        }
+        .status-value{
+            color: #eeee22;
+        }
+        .level-up{
+            animation-duration: 1s;
+            animation-name: levelUpBlink;
+        }
+        @@keyframes levelUpBlink
+        {
+            from{
+                background-color: #eeee22;
+                  
+            }
+            to{
+                background-color: #101010;
+            }
+        }
+        .damage{
+            animation-duration: 0.5s;
+            animation-name: shake;
+        }
+        @@keyframes shake{
+            0% { transform: translate(1px, 1px) rotate(0deg); background-color: #ee2222;}
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); background-color: #101010;}
+        }
+    </style>
+</head>
+<body>
+    <div id="divStatus" class="aRow status">
+        <div class="status-title">LV : <span id="spnLV" class="status-value">@(Model.LV)</span></div>
+        <div class="status-title">HP : <span id="spnHP" class="status-value">@(Model.HP)</span></div>
+        <div class="status-title">EXP : <span id="spnEXP" class="status-value">0</span></div>
+        <div class="status-title">NEXT : <span id="spnNEXT" class="status-value">@(Model.ExpToLv2)</span></div>
+        @{
+            int serialNo = 1;
+            foreach(int count in Model.CountArray)
+            {
+                string imgName = $"monsterLv{serialNo}.png";
+                                                                                                                                    <div class="count"><img class="count-monster" src="~/images/@imgName" /><div class="word-count"><span id="count@(serialNo)">@count</span></div></div>
+                serialNo++;
+            }
+        }
+        
+    </div>
+
+    <div id="mineField">
+        @{
+            for (int i = 0, n = Model.CountRow; i < n; i ++)
+            {
+                        <div class="aRow">
+                        @{
+                for(int j=0; j<Model.CountCol;j++)
+                {
+                                <div class="field field-unknown notSelected" id="(@i,@j)" data-row="@i" data-col="@j" data-status="0" data-reinforce="0" data-monster="0"><span class="word word-mine"></span><img class="fieldMonster" src="" /></div>
+                }
+                        }
+                        </div>  <!-- data-status : 0 最初 / 1 標示 / 2 怪物 / 3 怪物標示 -->
+            }
+        }
+
+    </div>
+
+
+
+
+@Html.Partial("_Js")
+
+        </body>
+        </html>
